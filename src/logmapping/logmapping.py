@@ -53,7 +53,7 @@ def generate_log_templates_with_generic_tokens_from_raw_logging_statements(loggi
     for line in list_of_templates:
         processed_line = line.split("\"")
         
-        if "\{\}" in line or "{" in line or "}" in line or "{}" in line:
+        if r"\{\}" in line or "{" in line or "}" in line or "{}" in line:
             continue
         
         if "+" in line and len(processed_line) > 3:
@@ -113,7 +113,7 @@ def generate_log_templates_with_rich_tokens_from_raw_logging_statements(logging_
     for line in list_of_templates:
         processed_line = line.split("\"")
         
-        if "\{\}" in line:
+        if r"\{\}" in line:
             continue
         
         if "+" in line and len(processed_line) > 3:
@@ -280,15 +280,15 @@ def remove_log_meta_information(list_of_log_messages):
     lines_no_meta_information = [x for x in lines_no_meta_information if x != ""]
     return lines_no_meta_information
 
-def find_str(s, char):
+def find_str(string, substring):
     index = 0
 
-    if char in s:
-        c = char[0]
-        for ch in s:
+    if substring in string:
+        c = substring[0]
+        for ch in string:
             if ch == c:
-                if s[index:index+len(char)] == char:
-                    return index, index + len(char)
+                if string[index:index+len(substring)] == substring:
+                    return index, index + len(substring)
             index += 1
 
     return -1, -1
