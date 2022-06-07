@@ -36,6 +36,7 @@ from itertools import chain
 from glob import glob
 import glob
 import pandas as pd
+import json
 
 from collections import Counter
 from string import punctuation
@@ -331,6 +332,7 @@ def match_runtime_log_to_template(runtime_logs, templates):
 def create_training_data_for_ner_model(raw_templates_matched, processed_templates_matched, runtime_logs_matched):
     
     training_data = []
+    ner_char_training_data = []
 
     for raw, proc_temp, runt_log in zip(raw_templates_matched, processed_templates_matched, runtime_logs_matched):
         print("Current raw template message: ", raw)
@@ -353,10 +355,13 @@ def create_training_data_for_ner_model(raw_templates_matched, processed_template
                 constants_placed.append([constant, start + counter, end + counter])
                 runt_log = runt_log[end:]
                 counter += end
+            # else:
+            #     break
 
         print(constants_placed)
 
         indices_for_variables = []
+        character_level_annotations = []
 
         if len(constants_placed) > 1 or "<GENERIC_VAR>" in constants_in_template:
             for i in range(len(constants_placed)):
@@ -368,6 +373,7 @@ def create_training_data_for_ner_model(raw_templates_matched, processed_template
                     print("len(constants_placed) - 1", len(constants_placed) - 1)
                     print("len(constants_placed)", len(constants_placed))
                     indices_for_variables.append((constants_placed[i][2], len(save_runt), "GENERIC_VAR", save_runt[constants_placed[i][2]:len(save_runt)]))
+                    character_level_annotations.append([constants_placed[i][2], len(save_runt)])
                 elif i == (len(constants_placed) - 1): # and len(constants_placed) == 1 and not constants_placed[i][2] < len(save_runt)
                     #indices_for_variables.append((constants_placed[i][2] + 1, len(save_runt), "GENERIC_VAR"))
                     break
@@ -376,6 +382,7 @@ def create_training_data_for_ner_model(raw_templates_matched, processed_template
                     a = constants_placed[i][2]
                     b = constants_placed[i+1][1]
                     indices_for_variables.append((a, b, "GENERIC_VAR", save_runt[a:b]))
+                    character_level_annotations.append([a, b])
                     if a > b:
                         print(constants_placed)
                     print(i, indices_for_variables)
@@ -383,16 +390,49 @@ def create_training_data_for_ner_model(raw_templates_matched, processed_template
             for i in range(len(constants_placed)):
                 if i == (len(constants_placed) - 1) and len(constants_placed) == 1: # and not constants_placed[i][2] < len(save_runt)
                     indices_for_variables.append((constants_placed[i][2], len(save_runt), "GENERIC_VAR", save_runt[constants_placed[i][2]:len(save_runt)]))
+                    character_level_annotations.append([constants_placed[i][2], len(save_runt)])
             
-        print(indices_for_variables, "\n")
+        print("indices_for_variables", indices_for_variables, "\n")
+        print("character_level_annotations", character_level_annotations, "\n")
+
+        training_data.append({"entities": indices_for_variables,   "text": [save_runt, proc_temp, raw]})
+
         
-        #indices_for_variables = indices_for_variables[0]
+        ner_char_entry = list(save_runt)
+        ner_annotations_per_char = []
 
-        training_data.append({"entities": [indices_for_variables],   "text": [save_runt, proc_temp]})
-        #training_data.append({"entities": [indices_for_variables],   "text": [save_runt, proc_temp, raw]})
+        for i in range(len(ner_char_entry)):
+            ner_annotations_per_char.append("O")
+        
+        for i in range(len(ner_char_entry)):
+            
+            for specific_range in character_level_annotations:
+                for el in range(specific_range[0], specific_range[1]):
+                    ner_annotations_per_char[el] = "VAR"
+        
+        ner_char_training_data.append({"entities": [ner_char_entry, ner_annotations_per_char]})
+    
 
-    for el in training_data:
-        print(el)
+    jsonString = json.dumps(ner_char_training_data)
+    jsonFile = open("refactored_code_output/ner_training_data_char.json", "w")
+    jsonFile.write(jsonString)
+    jsonFile.close()
+
+    for el, el2 in zip(training_data, ner_char_training_data):
+        print("Entities:")
+        for ent in el["entities"]:
+            print(ent)
+        print("Text:")
+        for ent in el["text"]:
+            print(ent)
+        print("Entities NER char:")
+        for ent in el2["entities"]:
+            print(ent)
+        print("\n\n")
+
+    return training_data, ner_char_training_data
+
+
 
 "Moved tmp to done: hdfs://msra-sa-41:9000/tmp/hadoop-yarn/staging"
 
