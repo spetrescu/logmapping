@@ -10,11 +10,11 @@ $ pip install logmapping
 
 ## Usage
 
-- TODO
+Map runtime logs to their underlying logging statements.
 
 ## Design
 
-<img width="1119" alt="1_sys_design" src="https://user-images.githubusercontent.com/60047427/165141888-98d0fed6-3f33-4ef8-a0ed-53d7274edd6d.png">
+<img width="1604" alt="log_mapping_design" src="https://user-images.githubusercontent.com/60047427/178629086-8802a2bd-2c0e-4a34-a25f-99d37aa858ef.png">
 
 ## Contributing
 
