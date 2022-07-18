@@ -1,3 +1,5 @@
+from logmapping.utils import MAPPING_LEVELS, MAPPING_TEMPLATE_ENTITY, MAPPING_TEMPLATE_GENERIC_VAR, MAPPING_TEMPLATE_UNDERLYING_STATEMENT
+
 class LoggingStatementsProcessor:
     def __init__(self, logging_statements):
         self.logging_statements = logging_statements
@@ -48,7 +50,32 @@ class LoggingStatementsProcessor:
             else:
                 raw_logging_statements_level_2.append(logging_statement)
         return processed_logging_statements_level_2, raw_logging_statements_level_2
-
+    
+    def process_logging_statements_level_3(self):
+        processed_logging_statements_level_3 = []
+        raw_logging_statements_level_3 = []
+        
+        for logging_statement in self.logging_statements:
+            if (
+                logging_statement.count('"') == 2
+                # and "\{\}" in logging_statement
+                and "%" not in logging_statement
+                and "+" not in logging_statement
+                # and logging_statement.count("\{\}") == 1
+                and logging_statement.count('{') == 1
+                and logging_statement.count('}') == 1
+                and "\"," in logging_statement
+                and logging_statement.count('\",') == 1
+                and logging_statement.count(',') == 1
+                and "(\"" in logging_statement
+            ):
+                if "-" in logging_statement.split("\"")[2] or "-" in logging_statement.split("\"")[0]:
+                    raw_logging_statements_level_3.append(logging_statement)
+                    continue
+                processed_logging_statements_level_3.append(logging_statement)
+            else:
+                raw_logging_statements_level_3.append(logging_statement)
+        return processed_logging_statements_level_3, raw_logging_statements_level_3
 
 class LogMapper:
     def __init__(self, logging_statements, runtime_logs):
@@ -59,7 +86,6 @@ class LogMapper:
         mapped_runtime_logs_to_loggging_statements_level_1 = []
         runtime_logs_mapped_level_1 = []
         for runtime_log in self.runtime_logs:
-            # print(runtime_log)
             for logging_statement in self.logging_statements:
                 if logging_statement == runtime_log:
                     if logging_statement == "":
@@ -71,6 +97,12 @@ class LogMapper:
     def log_mapping_level_2(self):
         mapped_runtime_logs_to_loggging_statements_level_2 = []
         runtime_logs_mapped_level_2 = []
+        logging_statement_considered = []
+
+        for logging_statement in self.logging_statements:
+            if logging_statement.startswith("//"):
+                    continue
+
         for runtime_log in self.runtime_logs:
             potential_matches = []
             for logging_statement in self.logging_statements:
@@ -89,7 +121,7 @@ class LogMapper:
                     logging_statement_static_part = logging_statement.split("\"")[2]
                 
                 if logging_statement_static_part in runtime_log:
-                    if runtime_log.startswith(logging_statement_static_part) or  runtime_log.endswith(logging_statement_static_part):
+                    if runtime_log.startswith(logging_statement_static_part) or runtime_log.endswith(logging_statement_static_part):
                         potential_matches.append(logging_statement)
                         # break
             if not potential_matches:
@@ -100,41 +132,367 @@ class LogMapper:
                 if logging_statement_mapped != "":
                     mapped_runtime_logs_to_loggging_statements_level_2.append([logging_statement_mapped, runtime_log])
                     runtime_logs_mapped_level_2.append(runtime_log)
-                # whitespace_min_number = 10000
-                # best_candidate = ""
-                # a = 0
-                # for match in potential_matches:
-                #     if a == 0:
-                #         if " " in match and match!= "":
-                #             whitespace_min_number = match.count(' ')
-                #             a += 1
-                #             continue
-                #     if " " in match and match!= "":
-                #         whitespace_current_number = match.count(' ')
-                #         if whitespace_current_number < whitespace_min_number:
-                #             best_candidate = match
-                #             whitespace_min_number = whitespace_current_number
-                #     # else:
-                #     #     whitespace_current_number = 0
-                #     #     best_candidate = match
-                # final_match = best_candidate
-                # if final_match != "":
-                #     mapped_runtime_logs_to_loggging_statements_level_2.append([final_match, runtime_log])
-                #     runtime_logs_mapped_level_2.append(runtime_log)
         return mapped_runtime_logs_to_loggging_statements_level_2, runtime_logs_mapped_level_2
-    # def log_mapping_level_2(self, runtime_logs, logging_statements):
-    #     mapped_runtime_logs_to_loggging_statements_level_2 = []
-    #     runtime_logs_mapped_level_2 = []
 
-    #     for runtime_log in runtime_logs:
-    #         runtime_log_split = runtime_log.split(" ")
-    #         for split_part in runtime_log_split:
-    #         logging_statement
+    def log_mapping_level_3(self):
+        mapped_runtime_logs_to_loggging_statements_level_3 = []
+        runtime_logs_mapped_level_3 = []
+        
+        # print("logging_statements:")
 
-    #     return mapped_runtime_logs_to_loggging_statements_level_2, runtime_logs_mapped_level_2
+        # counter = 0
+        # for el in self.runtime_logs:
+        #     counter += 1
+        #     print("Current runtime log considered: ")
+        #     print(el)
+        #     print()
+        #     if counter == 1:
+        #         break
+
+        # counter = 0
+        # for el in self.logging_statements:
+        #     counter += 1
+        #     print(el)
+        #     if counter == 10:
+        #         break
+        
+
+        matches_runtime = []
+        matches_logging_statements = []
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_3"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level_3.append(el)
+
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_3"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR["LEVEL_3"]
+        # "Task:<GENERIC_VAR> is done. And is in the process of committing"
+        gdth_rich = MAPPING_TEMPLATE_ENTITY["LEVEL_3"]
+        # "Task:<ID> is done. And is in the process of committing"
+        var_name = "taskId"
+        replaced = "ID"
+
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level_3.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, [var_name, replaced]])
+
+        return mapped_runtime_logs_to_loggging_statements_level_3, runtime_logs_mapped_level_3
 
 
 
+    def log_mapping_level_4(self):
+        mapped_runtime_logs_to_loggging_statements_level_4 = []
+        runtime_logs_mapped_level_4 = []
+
+        matches_runtime = []
+        matches_logging_statements = []
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_4"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level_4.append(el)
+        
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_4"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = "Progress of TaskAttempt <GENERIC_VAR> is : <GENERIC_VAR>"
+        gdth_rich = "Progress of TaskAttempt <ID> is : <GENERIC_VAR>"
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level_4.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["taskId, progress", "ID, GENERIC_VAR"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level_4, runtime_logs_mapped_level_4
+
+
+    def log_mapping_level_5(self):
+        mapped_runtime_logs_to_loggging_statements_level_5 = []
+        runtime_logs_mapped_level_5 = []
+        matches_runtime = []
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_5"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level_5.append(el)
+        
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR["LEVEL_5"]
+        gdth_rich = MAPPING_TEMPLATE_ENTITY["LEVEL_5"]
+
+        underlying_logging_statement = MAPPING_TEMPLATE_UNDERLYING_STATEMENT["LEVEL_5"]
+
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level_5.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["clientsString(), elapsed", "GENERIC_VAR, GENERIC_VAR"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level_5, runtime_logs_mapped_level_5
+
+
+    def log_mapping_level_6(self):
+        mapped_runtime_logs_to_loggging_statements_level_6 = []
+        runtime_logs_mapped_level_6 = []
+
+        matches_runtime = []
+        matches_logging_statements = []
+
+        # print("Current runtime log considered: ")
+        # counter = 0
+        # for el in self.runtime_logs:
+        #     counter += 1
+        #     print(el)
+        #     if counter == 50:
+        #         break
+
+        # counter = 0
+        # for el in self.logging_statements:
+        #     counter += 1
+        #     print(el)
+        #     if counter == 10:
+        #         break
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_6"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level_6.append(el)
+        
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_6"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+        
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR["LEVEL_6"]
+        gdth_rich = MAPPING_TEMPLATE_ENTITY["LEVEL_6"]
+
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level_6.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["jvmId", "ID"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level_6, runtime_logs_mapped_level_6
+
+
+    def log_mapping_level_7(self):
+        mapped_runtime_logs_to_loggging_statements_level_7 = []
+        runtime_logs_mapped_level_7 = []
+
+        matches_runtime = []
+        matches_logging_statements = []
+        
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_7"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level_7.append(el)
+        
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_7"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR["LEVEL_7"]
+        gdth_rich = MAPPING_TEMPLATE_ENTITY["LEVEL_7"]
+
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level_7.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["taskAttemptID, port", "ID, GENERIC_VAR"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level_7, runtime_logs_mapped_level_7
+
+
+    def log_mapping_level_8(self):
+        mapped_runtime_logs_to_loggging_statements_level_8 = []
+        runtime_logs_mapped_level_8 = []
+
+        # print("Current runtime log considered: ")
+        # counter = 0
+        # for el in self.runtime_logs:
+        #     counter += 1
+        #     print(el)
+        #     if counter == 50:
+        #         break
+
+        matches_runtime = []
+        matches_logging_statements = []
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_8"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level_8.append(el)
+        
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS["LEVEL_8"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR["LEVEL_8"]
+        gdth_rich = MAPPING_TEMPLATE_ENTITY["LEVEL_8"]
+
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level_8.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["attemptId, oldState, getInternalState()", "ID, GENERIC_VAR, GENERIC_VAR"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level_8, runtime_logs_mapped_level_8
+
+
+
+    def log_mapping_level_9(self, level_number):
+        mapped_runtime_logs_to_loggging_statements_level = []
+        runtime_logs_mapped_level = []
+
+        matches_runtime = []
+        matches_logging_statements = []
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS[f"LEVEL_{level_number}"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level.append(el)
+        
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS[f"LEVEL_{level_number}"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR[f"LEVEL_{level_number}"]
+        gdth_rich = MAPPING_TEMPLATE_ENTITY[f"LEVEL_{level_number}"]
+        
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["attemptId, container.getId(), StringInterner.weakIntern(container.getNodeId().toString())", "ID, ID, ID"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level, runtime_logs_mapped_level
+
+    def log_mapping_level_10(self, level_number):
+        mapped_runtime_logs_to_loggging_statements_level = []
+        runtime_logs_mapped_level = []
+
+        # print("Current runtime log considered LEVEL 10: ")
+        # counter = 0
+        # for el in self.runtime_logs:
+        #     counter += 1
+        #     print(el)
+        #     if counter == 50:
+        #         break
+
+        matches_runtime = []
+        matches_logging_statements = []
+
+        for el in self.runtime_logs:
+            match = True
+            for constant_part in MAPPING_LEVELS[f"LEVEL_{level_number}"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_runtime.append(el)
+                runtime_logs_mapped_level.append(el)
+        
+        for el in self.logging_statements:
+            match = True
+            for constant_part in MAPPING_LEVELS[f"LEVEL_{level_number}"]:
+                if constant_part in el:
+                    continue
+                else:
+                    match = False
+            if match == True:
+                matches_logging_statements.append(el)
+
+        if len(matches_logging_statements) == 1:
+            underlying_logging_statement = matches_logging_statements[0]
+
+        gdth_simple = MAPPING_TEMPLATE_GENERIC_VAR[f"LEVEL_{level_number}"]
+        gdth_rich = MAPPING_TEMPLATE_ENTITY[f"LEVEL_{level_number}"]
+        
+        for runtime_log in matches_runtime:
+            mapped_runtime_logs_to_loggging_statements_level.append([runtime_log, underlying_logging_statement, gdth_rich, gdth_simple, ["taskId, oldState, getInternalState()", "ID, GENERIC_VAR, GENERIC_VAR"]])
+
+        return mapped_runtime_logs_to_loggging_statements_level, runtime_logs_mapped_level
 
 JAVA_LINE_TERMINATOR = ";"
 JAVA_LOGGING_FORMULAE = ["LOG.info("]
@@ -640,10 +998,6 @@ def create_training_data_for_ner_model(
         print("\n\n")
 
     return training_data, ner_char_training_data
-
-
-"Moved tmp to done: hdfs://msra-sa-41:9000/tmp/hadoop-yarn/staging"
-
 
 def map_runtime_logs_logging_statements(
     path_to_dir_containing_codebase, path_to_log_dataset, language
